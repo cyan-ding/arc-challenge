@@ -1,0 +1,99 @@
+---
+description: Ground truth for the Arc Virtual Cell Challenge 2026 — task, submission contract, and scoring. Overrides any recalled 2025 details.
+alwaysApply: true
+---
+
+# This project targets Virtual Cell Challenge **2026**, not 2025
+
+Your pretrained knowledge of the VCC is mostly the **2025** challenge, and nearly every
+number changed. If a fact below contradicts what you recall, the fact below wins. If a
+detail isn't covered here, say so and check
+[the evaluation page](https://virtualcellchallenge.org/evaluation),
+[the datasets page](https://virtualcellchallenge.org/datasets),
+[the CLI guide](https://vcc-cli-wiki.virtualcellchallenge.org/), or
+[cell-eval2](https://github.com/ArcInstitute/cell-eval2) rather than guessing.
+
+## Stale 2025 facts — never apply these
+
+| 2025 (wrong now) | 2026 (correct) |
+| --- | --- |
+| Metrics are DES, PDS, MAE | Six reference-scaled metrics (below); DES and raw MAE no longer exist |
+| Single cell line, H1 hESC | Six anonymized cell lines across tissues; three per round |
+| 150 training perturbations provided | **No training set at all** — the task is zero-shot |
+| Per-perturbation cell counts vary, read from `pert_counts.csv` | Flat **400 cells** for every perturbation; `pert_counts.csv` is a bare one-column gene list |
+| ≤100,000 cells per submission | 360,000-cell panel, 400,000 hard cap |
+| Score with `cell-eval` | Score with **`cell-eval2`**, preset `vcc2026` |
+| A mean predictor is competitive | The context mean **is the zero point**; it scores exactly 0.0 |
+
+## The task
+
+Arc ran CRISPRi Perturb-seq with 10x Flex on six cell lines from different tissues.
+Per round you get, for three of them, only the **non-targeting control profiles** plus the
+list of 300 knockdowns to predict. Predict post-perturbation expression in each context
+without any matched perturbation data from that context.
+
+- Contexts are anonymized and never named: `A`/`B`/`C` in validation, `D`/`E`/`F` in the final phase.
+- Controls per context: 18,400 cells (46 NTC guides × 400), median ~20,000 UMI/cell, `ntc_id` in `.obs`.
+- Train on anything you have rights to (2025 H1 data, Replogle, Nadig, Jiang, Tahoe-100M, …).
+- **Never reassign context labels.** A swap silently degrades every metric and looks like a weak model.
+
+## Submission contract — all enforced by `vcc prep` and again at scoring
+
+One `.h5ad` covering all three contexts, packaged to `.vcc`. Exactly:
+
+- **360,000 cells** = 300 perturbations × **400 cells** × 3 contexts. Off by one cell → rejected.
+- **18,533 genes** in `.var`, ordered by `gene_names.csv`.
+- `.obs` needs `target_gene` (gene symbols like `ADNP`, never `ADNP-1`) and `context`.
+- `.X` is **raw integer counts** — non-negative, whole, finite. Never `normalize_total` or `log1p`. Round continuous output.
+- **No `non-targeting` rows.** Downloaded controls are model input only; scoring uses held-out controls.
+- ≤1,000,000 counts in any single cell; ≤4,750,000,000 stored entries in `.X` (store CSR sparse — a dense array is 1.4× over on its own).
+
+```bash
+vcc prep prediction.h5ad -g gene_names.csv --perts pert_counts.csv -o prediction.vcc  # --perts has no short form
+vcc submit prediction.vcc -m "model v3" --wait
+```
+
+Two scored submissions per team per day, resetting midnight UTC; one in flight at a time.
+
+## Scoring
+
+`cell-eval2` on the `vcc2026` profile. Six metrics, leaderboard short name in parentheses:
+
+| metric id | short | measures |
+| --- | --- | --- |
+| `pds_cosine` | `pds` | rank of the true effect by cosine distance, within the 300-panel |
+| `expr_mse_unbiased_capped_norm` | `mse` | expression error, sampling-noise corrected, panel-level ratio |
+| `de_wilcoxon_lfc_nmae` | `nmae` | normalized MAE of log2FC over reference-significant genes |
+| `de_wilcoxon_direction_fidelity_yield_raw` | `fid` | direction correctness of called genes, scaled by yield |
+| `de_wilcoxon_direction_reach_raw` | `reach` | depth its own ranking stays ≥90% directionally pure |
+| `de_wilcoxon_sig_jaccard` | `jac` | Jaccard of significant-gene sets, so over-calling is penalized |
+
+**Reference scaling is the thing to internalize.** Each metric is mapped `s = (u − b) / (r − b)`
+per context, where `b` is that context's mean-response baseline and `r` is a real replicate
+(mean of five disjoint half-splits). So **0 = no better than the context mean, 1 = as good as
+a repeat of the experiment.** Overall is the flat unweighted mean over 6 metrics × 3 contexts.
+
+- 1.0 is a landmark, not a cap. Only `mse` clamps, to `[0, 1]`. `nmae` floors at −6; the rest are unbounded above.
+- Negative scores are valid and mean "worse than the context mean."
+- Never phrase a score as a percentage or as "% correct."
+- Validation and final scores are **not comparable** — different lines, different panels, and `pds` is a within-panel rank.
+
+DE parameters: two-sided Wilcoxon rank-sum on counts normalized to 1e6 per cell; genes gated at
+>5 CPM in reference control cells; BH at α = 0.05 applied **per perturbation**; `pds`/`mse` use
+pseudobulk at `bulk_target_sum` = 5e4; reach purity floor 0.9; `nmae` needs a gate of ≥10 genes.
+The perturbed gene's own row is excluded from all six metrics.
+
+Baselines with the most headroom are `reach` (b ≈ 0.05–0.10) and `jac` (b ≈ 0.02–0.04);
+`nmae`'s baseline is ~1.0, so predicting zero fold change scores 0.
+
+## Timeline (2026)
+
+Challenge opened Aug 20 · **final test set released Oct 22** · **final submissions close Nov 5** ·
+winners late November. Final rankings use the final test set only; the live leaderboard is validation.
+
+## Repo context
+
+`arc-atlas-data.md`, `public-data.md`, `cursor-recipe.md`, and
+`cursor_important_details_from_paper.md` are working notes. They discuss the 2025 dataset and the
+PRiMeFlow paper (which competed in **2025**, under DES/PDS/MAE). Treat their metric commentary as
+historical; this file governs.
