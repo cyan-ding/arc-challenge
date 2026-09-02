@@ -1,14 +1,18 @@
 Here's the orientation first, because the three links aren't three parallel things.
 
-The [Google Cloud Marketplace listing](https://console.cloud.google.com/marketplace/product/bigquery-public-data/arc-institute?project=gcp-public-data-arc-institute) isn't a dataset — it's the **access layer** for all of them. Tahoe-100M and scBaseCount are the two datasets Arc "bootstrapped" the atlas with, and they're very different in kind. There's also a third folder in that repo that nobody links prominently but which matters most for you: [`virtual-cell-challenge/`](https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/virtual-cell-challenge), holding last year's data.
+The [Google Cloud Marketplace listing](https://console.cloud.google.com/marketplace/product/bigquery-public-data/arc-institute?project=gcp-public-data-arc-institute) isn't a dataset — it's the **access layer** for all of them. Tahoe-100M and scBaseCount are the two datasets Arc "bootstrapped" the atlas with, and they're very different in kind. There's also a third folder in that repo that nobody links prominently but which matters most for you: `[virtual-cell-challenge/](https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/virtual-cell-challenge)`, holding last year's data.
 
 Ranked by relevance to the 2026 zero-shot task:
 
-| dataset | scale | perturbation type | why you'd use it |
-|---|---|---|---|
-| VCC 2025 (H1) | ~300k cells, 300 target genes | **CRISPRi knockdown** | exact task match; your local validation harness |
-| Tahoe-100M | 100.6M cells, 50 cell lines | small-molecule drugs | the cross-context transfer signal |
-| scBaseCount | 502M+ cells, 27 organisms | mostly none (observational) | pretraining a basal-state representation |
+
+| dataset       | scale                         | perturbation type           | why you'd use it                                |
+| ------------- | ----------------------------- | --------------------------- | ----------------------------------------------- |
+| VCC 2025 (H1) | ~300k cells, 300 target genes | **CRISPRi knockdown**       | exact task match; your local validation harness |
+| Tahoe-100M    | 100.6M cells, 50 cell lines   | small-molecule drugs        | the cross-context transfer signal               |
+| scBaseCount   | 502M+ cells, 27 organisms     | mostly none (observational) | pretraining a basal-state representation        |
+
+
+
 
 ## The access layer
 
@@ -42,7 +46,7 @@ Two structural traps here.
 
 **Use the 2026-01-12 release, not the 2025-02-01 one.** The README calls the initial release deprecated; it's a different cell count (230M vs 502M) and different metadata schema.
 
-**Every h5ad carries multiple layers, and picking the wrong one is a silent bug.** `adata.X` is the `Gene`/`Unique` count (exonic reads, unique UMI assignment) — that's the one that corresponds to conventional 10x processing and therefore to the challenge data. But the files also contain `UniqueAndMult-EM` and `UniqueAndMult-Uniform` layers, and the Velocyto feature type gives you `spliced`/`unspliced`/`ambiguous`. The `GeneFull*` variants count intronic reads too and therefore have systematically higher counts. Mixing feature types across your training set shifts the count distribution with nothing throwing an error.
+**Every h5ad carries multiple layers, and picking the wrong one is a silent bug.** `adata.X` is the `Gene`/`Unique` count (exonic reads, unique UMI assignment) — that's the one that corresponds to conventional 10x processing and therefore to the challenge data. But the files also contain `UniqueAndMult-EM` and `UniqueAndMult-Uniform` layers, and the Velocyto feature type gives you `spliced`/`unspliced`/`ambiguous`. The `GeneFull`* variants count intronic reads too and therefore have systematically higher counts. Mixing feature types across your training set shifts the count distribution with nothing throwing an error.
 
 The metadata is LLM-extracted and correspondingly noisy. Arc is upfront about this: disease labels are pulled at **study level** from abstracts, so a "COVID-19" study propagates that label to its healthy controls. They ship a `single_disease_confidence` field (low/medium/high) plus a reasoning string to help you filter. Treat `cell_line`, `tissue`, and `perturbation` as free-text-ish and expect to normalize. One naming quirk: `NRX` accessions are CZI CELLxGENE datasets that were never uploaded to SRA, so they don't follow SRX conventions.
 

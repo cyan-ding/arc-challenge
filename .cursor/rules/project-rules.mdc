@@ -93,7 +93,11 @@ winners late November. Final rankings use the final test set only; the live lead
 
 ## Repo context
 
-`arc-atlas-data.md`, `public-data.md`, `cursor-recipe.md`, and
-`cursor_important_details_from_paper.md` are working notes. They discuss the 2025 dataset and the
-PRiMeFlow paper (which competed in **2025**, under DES/PDS/MAE). Treat their metric commentary as
-historical; this file governs.
+Working notes, all subordinate to this file if they ever conflict:
+
+- `cursor-recipe.md` — the modeling plan. Aligned to the 2026 contract and scoring.
+- `2026-metric-explanation.md` — walkthrough of how a submission becomes the six scores.
+- `arc-atlas-data.md`, `public-data.md` — dataset surveys. They describe 2025 and other public
+  data as *training sources*, which is correct and intended.
+- `primeflow-analysis.md` — analysis of the PRiMeFlow paper, which competed in **2025** under
+  DES/PDS/MAE/AUPRC. Its metric commentary is deliberately historical; do not apply it to 2026.
