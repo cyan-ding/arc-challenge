@@ -1,0 +1,28 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Data and artifacts: never commit matrices. gene_names.csv and pert_counts.csv are
+# the exceptions and live in data/contracts/ (small, versioned, they are the contract).
+data/**
+!data/contracts/
+!data/contracts/**
+*.h5ad
+*.vcc
+*.csad
+*.shad
+*.parquet
+cache/
+cell-eval2-outdir/
+cell-eval2-baseline/
+
+# VCC credentials never belong in the repo
+.vcc/
+*.token
+
+# OS
+.DS_Store

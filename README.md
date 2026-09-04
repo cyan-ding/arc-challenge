@@ -18,10 +18,29 @@ Final test set released Oct 22, 2026 · submissions close Nov 5, 2026.
 metrics, timeline. Read it first; it overrides everything in `docs/`, and it overrides
 pretrained knowledge of the 2025 challenge, which differed in nearly every detail.
 
+## Setup
+
+Python 3.12 via `uv` (pinned in `.python-version`; 3.11 also works, 3.13+ does not — see
+`pyproject.toml`). `cell-eval2` is pinned exactly because the `vcc2026` profile changed between
+releases.
+
+```bash
+uv sync --extra dev                          # creates .venv with cell-eval2 0.16.0 + pdex
+uv run cell-eval2 --help                     # scorer
+uv tool install vcc-cli && vcc --version     # submission CLI (needs `uv tool update-shell` once)
+vcc login --token-stdin                      # key from Account -> Credentials on the portal
+vcc datasets download controls -d ~/vcc      # A/B/C controls + gene_names.csv + pert_counts.csv
+```
+
+After downloading, copy `gene_names.csv` and `pert_counts.csv` into `data/contracts/` and commit
+them. They are the gene-space and perturbation contracts every team codes against. Nothing else
+under `data/` is tracked.
+
 ## Docs
 
 | file | contents |
 | --- | --- |
+| `docs/vcc2026-metrics-notes.md` | What the official metric spec PDFs actually say: exact `fid` and `reach` definitions, the published baseline/replicate anchors per metric, how the five half-splits are built, the upload-vs-scoring contract split that explains the `non-targeting` confusion, which `cell-eval2` 0.16.0 subcommands build the anchors locally, and what `vcc prep` does and doesn't catch. Includes corrections to the other docs. |
 | `docs/claude-recipe.md` | The modeling plan. Two stages: predict a per-(target, context) effect vector Δ over 18,533 genes, then shift real control cells by Δ to produce 400 cells. Covers shrinkage of noisy public log2FC estimates, response-program factorization, context transfer, and which knobs to tune against which metric. |
 | `docs/2026-metric-explanation.md` | End-to-end walkthrough of how a submission becomes six scores: the pseudobulk vector and Wilcoxon DE table per 400-cell block, worked toy examples of `jac`, `fid`, `nmae`, `reach`, `pds`, and why predicted cell-to-cell variance is itself scored. |
 | `docs/public-data.md` | Training-data survey, tiered by usefulness. Replogle 2022 + Nadig 2025 (~2,000 shared perturbations × 4 cell lines, CRISPRi, plus precomputed log2FC/SE/p-values on figshare), Jiang's crossed six-line grid, Feng 2026 iPSC lines, and the per-perturbation depth caveats that make raw pseudobulk LFCs mostly noise. |

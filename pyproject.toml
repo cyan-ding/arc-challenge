@@ -1,0 +1,38 @@
+[project]
+name = "arc-vcc-2026"
+version = "0.0.1"
+description = "Arc Virtual Cell Challenge 2026: evaluation stack, data contracts, and modeling."
+readme = "README.md"
+# 3.11 or 3.12 only: cellstream (the cell-eval2 [scale] extra) ships wheels for these two
+# interpreters only; anything newer falls back to a Rust source build.
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    # Pinned exactly. vcc2026 profile membership changed between 0.7.x and 0.8.0, and the
+    # scorer version is recorded in every run's metadata, so an unpinned upgrade would make
+    # runs silently non-comparable.
+    "cell-eval2==0.16.0",
+    # CPU differential-expression engine. Without it cell-eval2 falls back to scanpy, which
+    # is substantially slower. Pinned so DE numbers are reproducible across machines.
+    "pdex>=0.2.6",
+    "anndata>=0.10",
+    "scanpy>=1.10",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.1",
+    "polars>=1.0",
+    "h5py>=3.10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+# Every teammate resolves against the same Python.
+python-preference = "managed"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
