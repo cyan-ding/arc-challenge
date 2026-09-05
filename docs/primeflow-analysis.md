@@ -99,7 +99,7 @@ A **U-Net** is a convolutional architecture from image segmentation: progressive
 
 ## Evaluation metrics
 
-*The metric names below are the ones PRiMeFlow was scored on, which is the **2025** set. None of DES, MAE, AUPRC, Spearman, or Pearson exists in 2026; see `2026-metric-explanation.md` and `.cursor/rules/project-rules.mdc` for the six that replaced them. PDS survives in modified form as `pds`. The general concepts here — pseudobulk, DEG, MMD, rank metrics, mean predictors — all still apply.*
+*The metric names below are the ones PRiMeFlow was scored on, which is the **2025** set. None of DES, MAE, AUPRC, Spearman, or Pearson exists in 2026; see `2026-metric-explanation.md` and `.cursor/rules/challenge-rules.mdc` for the six that replaced them. PDS survives in modified form as `pds`. The general concepts here — pseudobulk, DEG, MMD, rank metrics, mean predictors — all still apply.*
 
 **Pseudobulk** means averaging expression across all cells in a condition, collapsing thousands of cells into one vector per perturbation. It's what bulk RNA-seq would have given you. It's convenient and it's what most metrics use, but it throws away all cell-to-cell variation — which is the specific thing PRiMeFlow is trying to model. That tension is the paper's main narrative.
 

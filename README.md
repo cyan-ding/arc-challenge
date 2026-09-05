@@ -14,7 +14,7 @@ Final test set released Oct 22, 2026 · submissions close Nov 5, 2026.
 
 ## Start here
 
-`.cursor/rules/project-rules.mdc` is the authoritative spec — task, submission contract,
+`.cursor/rules/challenge-rules.mdc` is the authoritative spec — task, submission contract,
 metrics, timeline. Read it first; it overrides everything in `docs/`, and it overrides
 pretrained knowledge of the 2025 challenge, which differed in nearly every detail.
 
@@ -50,6 +50,8 @@ See `docs/vcc2026-metrics-notes.md` §8 for its gene space vs 2026 and the local
 
 | file | contents |
 | --- | --- |
+| `docs/lab-notebook.md` | Chronological record of every working session: which action items were closed, what was found, which commit it landed in, and what's still open. Read this to catch up on where the eval stack is. |
+| `docs/eval-action-items.md` | The 15-item plan for the evaluation stack, in the order the items should be done. |
 | `docs/vcc2026-metrics-notes.md` | What the official metric spec PDFs actually say: exact `fid` and `reach` definitions, the published baseline/replicate anchors per metric, how the five half-splits are built, the upload-vs-scoring contract split that explains the `non-targeting` confusion, which `cell-eval2` 0.16.0 subcommands build the anchors locally, and what `vcc prep` does and doesn't catch. Includes corrections to the other docs. |
 | `docs/claude-recipe.md` | The modeling plan. Two stages: predict a per-(target, context) effect vector Δ over 18,533 genes, then shift real control cells by Δ to produce 400 cells. Covers shrinkage of noisy public log2FC estimates, response-program factorization, context transfer, and which knobs to tune against which metric. |
 | `docs/2026-metric-explanation.md` | End-to-end walkthrough of how a submission becomes six scores: the pseudobulk vector and Wilcoxon DE table per 400-cell block, worked toy examples of `jac`, `fid`, `nmae`, `reach`, `pds`, and why predicted cell-to-cell variance is itself scored. |

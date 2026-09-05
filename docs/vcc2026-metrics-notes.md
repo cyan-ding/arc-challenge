@@ -9,7 +9,7 @@ with **cell-eval2 0.15.0, competition rule_version 3**. We have **cell-eval2 0.1
 
 This file answers the four questions `docs/claude-recipe.md` left open, records the anchor
 values, and notes where it corrects our other docs. Where anything here disagrees with
-`.cursor/rules/project-rules.mdc`, the rules file wins until we reconcile it — but the two
+`.cursor/rules/challenge-rules.mdc`, the rules file wins until we reconcile it — but the two
 corrections flagged in §7 are worth folding into the rules file.
 
 ## 0. The one thing that resolves most of the confusion: two contracts
@@ -301,7 +301,7 @@ hardware's limit (4.75 B stored entries); dense storage is 1.40× over on its ow
 ## 7. Corrections to our other docs
 
 1. **`pds_cosine` excludes all 300 panel target genes, not just the perturbation's own.**
-   `project-rules.mdc` ("The perturbed gene's own row is excluded from all six metrics") and
+   `challenge-rules.mdc` ("The perturbed gene's own row is excluded from all six metrics") and
    `docs/2026-metric-explanation.md` both state own-gene-only exclusion. The other five metrics
    are own-gene-only; `pds` is panel-wide. The modeling consequence is small (the 300 target
    rows are excluded from the distance either way) but any local re-implementation of `pds` has
