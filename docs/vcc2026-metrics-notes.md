@@ -320,11 +320,143 @@ hardware's limit (4.75 B stored entries); dense storage is 1.40× over on its ow
    mechanism is coverage: we must call at least n_real genes per perturbation to stop paying the
    coverage penalty, while `jac` charges every extra call. `phi` sits exactly on that tension.
 
-## 8. Still open
+## 8. Local harness validation on 2025 H1 data (action items 5–7, done 2026-09-04)
 
-- Re-run `vcc sample` → `vcc prep --dry-run` against the real `data/contracts/` files.
-- Confirm the 2025 H1 data's gene space against the 2026 `gene_names.csv` before using it as the
-  local reference (action item 6).
-- Read the per-context anchor values out of a real `vcc submit` (`Anchor set` stamp) once we have a
-  scored submission, and compare with a locally built `prep-real-bundle` on the 2025 H1 data to
-  see how far off our local scale sits.
+### 8.1 The scoring contract, confirmed empirically
+
+Running `cell-eval2 run --preset vcc2026` on a prediction **without** `non-targeting` rows fails
+hard: `ValueError: perturbation sets differ: 5 pred vs 6 real; real-only=['non-targeting']`.
+So locally we must do what the platform does — concatenate the real control cells onto our
+prediction before scoring. `score.py` (action item 9) owns that bridge. The upload file still
+carries no controls.
+
+The `vcc2026` run emits ten columns: the six scored metrics plus `expr_distance_unbiased`,
+`expr_mse_unbiased`, `expr_mse_unbiased_capped`, `expr_real_mass_ratio`. `results.csv` is long
+form (`perturbation, metric, value`); `agg_results.csv` is wide with `count/mean/std/min/max/median`
+rows; `expr_mse_unbiased_capped_norm` has `count = NaN` because it is a panel ratio.
+`run_meta.json` stamps `cell_eval2_version`, `config_digest`, `resolved_de_backend`, and an
+`anchor_semantic_identity` that `score --real-bundle` uses to refuse mismatched runs.
+
+If a target label does not resolve to a gene in `var_names`, the scorer warns and scores that
+perturbation **without** target exclusion, which can inflate `pds`. On the full gene space every
+2026 panel gene resolves (checked below); `EvalConfig.target_gene_map` exists for the case where a
+symbol differs.
+
+### 8.2 Where the 2025 data lives and how it compares to 2026
+
+The Hugging Face repo `arcinstitute/VCC_train` referenced in older notes **no longer exists**.
+The processed 2025 files are publicly readable over plain HTTPS from the Arc bucket, no GCP
+project or requester-pays needed:
+
+```
+https://storage.googleapis.com/arc-institute-virtual-cell-atlas/virtual-cell-challenge/2025/
+  gene_names.csv                          18,080 genes, headerless
+  train/adata_Training.h5ad               15.5 GB, 150 perturbations
+  validation/adata_Validation.h5ad         6.9 GB,  50 perturbations, 98,927 cells, 38,176 NTC
+  test/adata_Test.h5ad                    12.0 GB, 100 perturbations
+  {train,validation,test}/pert_counts_*.csv   with n_cells and median_umi_per_cell columns
+```
+
+Local copies: `data/vcc2025/` (ignored by git). `.X` is CSR float32 holding integer counts;
+`obs` has `target_gene`, `guide_id`, `batch`; `var_names` equals the 2025 `gene_names.csv` order.
+Per-perturbation depth is 161–2,925 cells at a median ~44,000 UMI/cell — about twice the 2026
+reference depth of 20,000.
+
+Gene space vs 2026 `data/contracts/gene_names.csv`:
+
+- 18,077 of 18,080 2025 genes are in the 2026 space. The 3 that are not — `HSPA14-1`, `TBCE-1`,
+  `TMSB15B-1` — are `var_names_make_unique` suffixes, i.e. 2025 had duplicate symbols that 2026
+  collapsed.
+- 456 genes are 2026-only, largely `AC…` clone-ID lncRNAs from a newer annotation.
+- The order differs, so nothing may be aligned positionally.
+- All 300 of the 2026 panel genes are measured in both spaces. **25 of them were also 2025
+  targets** (`ACLY`, `ADNP`, `AKT2`, `ANKZF1`, `BRPF1`, `HDAC8`, `HSBP1`, `MED13`, `MED15`,
+  `MED25`, `MTA1`, `NFE2L1`, `PLAGL2`, `RNF2`, `SHPRH`, `SIN3B`, `SLIRP`, `SMARCA5`, `STAT6`,
+  `TARBP2`, …) — real H1 ground truth for 25 panel genes.
+
+For **scoring against 2025 ground truth no harmonization is needed** — pred and real only have to
+share an axis. Harmonization (reindex onto the 2026 order, zero-fill the 456, carry a measured
+mask) is only required when 2025 data becomes *training input*. That belongs to the data team.
+
+### 8.3 Landmarks
+
+Local reference: the 2025 validation set downsampled to the challenge shape — 44 perturbations ×
+400 cells (six perturbations with < 400 cells dropped: `EIF3H`, `FUBP1`, `MAX`, `SUPV3L1`, `WAC`,
+`ZNF598`) plus 8,000 NTC cells, seed 0. Pipeline, all with
+`--preset vcc2026 --pert-col target_gene --set de.backend=pdex --cache-real cache/real`:
+
+```
+cell-eval2 baseline -ar ref.h5ad ... -o baseline --save-pred pred_baseline.h5ad
+cell-eval2 prep-real-bundle --real ref.h5ad --baseline pred_baseline.h5ad -o bundle ... --id <name>
+cell-eval2 run -ap pred.h5ad -ar ref.h5ad ... -o user
+cell-eval2 score --user-agg user/agg_results.csv --real-bundle bundle -o scored.csv
+```
+
+Two flag facts learned the hard way: `prep-real-bundle --baseline` takes the baseline
+**prediction h5ad**, not the `baseline/` output directory; and the saved baseline prediction is
+fractional (a mean profile) and only passes the counts check because `baseline` sets
+`allow_fractional_counts` internally — it cannot be re-run as an ordinary submission, and it
+cannot be self-scored against the bundle (`baseline_meta.json` has no anchor identity). The 0 end
+is the bundle's zero by construction.
+
+Scaled results (`from_replicate` column — the competition number):
+
+| metric | exact reproduction (real vs real) | spec's exact-reproduction range | control paste |
+|---|---|---|---|
+| `pds_cosine` | 1.106 | 1.03–1.17 | −0.071 |
+| `expr_mse_unbiased_capped_norm` | **1.000000** | 1.000 | 0.000 |
+| `de_wilcoxon_direction_fidelity_yield_raw` | 1.163 | 1.51–1.72 | −0.318 |
+| `de_wilcoxon_direction_reach_raw` | 1.019 | 1.02–1.05 | −0.104 |
+| `de_wilcoxon_sig_jaccard` | 2.281 | 2.48–2.85 | −0.013 |
+| `de_wilcoxon_lfc_nmae` | 1.587 | 1.58–1.75 | −0.084 |
+| `avg_score` | 1.359 | — | −0.098 |
+
+Both landmarks behave as the spec says: `mse` is exactly 1.0 at exact reproduction and 0
+(clamped) for control paste; the five unclamped members all exceed 1 at exact reproduction in the
+spec's pattern (`jac` highest, `reach` barely above 1); control paste lands just below 0 on
+`nmae` (raw ≈ 1.008, exactly the spec's "broadcasting the true control" value) and near 0 on
+`pds`. The harness is wired correctly.
+
+Local anchors vs the published A/B/C ones, for calibration only:
+
+| metric | local b | spec b | local r | spec r |
+|---|---|---|---|---|
+| `pds_cosine` | 0.515 | 0.500 | 0.954 | 0.927–0.984 |
+| `expr_mse_unbiased_capped_norm` | 0.965 | 0.986–0.992 | 0.004 | 0.028–0.045 |
+| `fid` | 0.219 | 0.505–0.522 | 0.890 | 0.795–0.832 |
+| `reach` | 0.152 | 0.047–0.097 | 0.984 | 0.958–0.978 |
+| `jac` | 0.006 | 0.021–0.037 | 0.442 | 0.375–0.423 |
+| `nmae` | 0.949 | 1.0009–1.0017 | 0.351 | 0.369–0.431 |
+
+The `r` values sit slightly *above* Arc's on every DE metric, as expected for data at twice the
+depth with 8,000 controls. The `b` values differ more — H1's mean response calls fewer genes than
+A/B/C's (`fid` b = 0.22 vs 0.51) and actually helps on `nmae` (0.95 vs 1.00). This is exactly the
+caveat in action item 14: **local scaled scores rank configurations; they do not predict the
+leaderboard.** A panel of 44 also makes `pds` noisier (control paste reads −0.07 instead of the
+spec's ≈ 0).
+
+### 8.4 Timing (action item 12, first numbers)
+
+Apple M4 Max, 14 cores, 38 GB, CPU-only `pdex`, 44 perturbations × 400 cells + 8,000 controls,
+18,080 genes:
+
+| stage | wall | notes |
+|---|---|---|
+| `baseline` (build + score the 0 end) | 64 s | 6m50s CPU — `pdex` parallelizes across cores |
+| `prep-real-bundle` (5 splits, each a full DE run on halves) | 5 min 8 s | 38 CPU-minutes; one-time per reference |
+| `run` on one prediction, real side cached | **38.5 s** | this is the per-config cost in a sweep |
+
+Extrapolating linearly in perturbation count: one 300-perturbation context ≈ 4.4 min per
+prediction, so **≈ 13 min for a full three-context prediction on this laptop**, and ≈ 35 min per
+context to build a bundle once. A 20-configuration sweep over three contexts is therefore an
+afternoon on CPU; a `phi` × `weights` grid in the hundreds wants the GPU box. Real-side cache
+for this reference is 56 MB; the bundle is 28 KB (aggregates only, no matrices).
+
+## 9. Still open
+
+- Run the same landmark check on the 150-perturbation training set (closer to the 300 panel) and
+  measure the resampling noise floor (action item 12, second number).
+- Read the per-context anchor values out of a real `vcc submit` (`Anchor set` stamp) once we have
+  a scored submission, and compare with the local bundle to see how far off our local scale sits.
+- Fold §8.3's pipeline into `src/vcc/` (action items 8–10): `score()` must perform the control
+  bridge of §8.1 and refuse to score without it.

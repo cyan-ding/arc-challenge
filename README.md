@@ -36,6 +36,16 @@ After downloading, copy `gene_names.csv` and `pert_counts.csv` into `data/contra
 them. They are the gene-space and perturbation contracts every team codes against. Nothing else
 under `data/` is tracked.
 
+The 2025 H1 data (our local ground truth) is public over plain HTTPS, no GCP account needed:
+
+```bash
+B=https://storage.googleapis.com/arc-institute-virtual-cell-atlas/virtual-cell-challenge/2025
+curl -C - -o data/vcc2025/adata_Validation.h5ad $B/validation/adata_Validation.h5ad   # 6.9 GB
+curl -C - -o data/vcc2025/adata_Training.h5ad   $B/train/adata_Training.h5ad           # 15.5 GB
+```
+
+See `docs/vcc2026-metrics-notes.md` §8 for its gene space vs 2026 and the local scoring bundle.
+
 ## Docs
 
 | file | contents |
